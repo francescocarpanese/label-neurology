@@ -14,7 +14,7 @@ from tkinter import ttk
 CODE_VERSION = "0.0.1"
 
 # Initialize the DataFrame to store the coordinates and selection status
-coordinates_df = pd.DataFrame(columns=['x', 'y', 'size', 'selected', 'type', 'active_indices', 'is_saved', 'patient_folder', 'creation_timestamp', 'file_name', 'code_version' ])
+coordinates_df = pd.DataFrame(columns=['x', 'y', 'size', 'selected', 'type', 'active_indices', 'patient_folder', 'creation_timestamp', 'file_name', 'code_version' ])
 
 # Initialize variables to store the image list and current image index
 image_names = []
@@ -54,8 +54,6 @@ def get_color(row):
         
 # Get linestyle depending is_saved
 def get_linestyle(row):
-    if not row['is_saved']:
-        return '--'
     if len(row['active_indices']) >1:
         # In this case the corrent square is part of more than one slice
         return ':'
@@ -118,7 +116,6 @@ def on_click(event):
                 'selected': [False],
                 'type': [label_type.get()],
                 'active_indices': [[current_image_index]],
-                'is_saved': [False],
                 'patient_folder': [patient_folder_path],
                 'creation_timestamp': [pd.Timestamp.now()],
                 'file_name': [image_names[current_image_index]],
@@ -187,13 +184,7 @@ def delete_selected():
     load_image(patient_folder_path, image_names[current_image_index])
     update_label_counts()
 
-# Save the labels of the current slice
-def save_labels():
-    global coordinates_df
-    unselect_all()
-    coordinates_df['is_saved'] = coordinates_df['is_saved'] | coordinates_df['active_indices'].apply(lambda x: current_image_index in x)
-    load_image(patient_folder_path, image_names[current_image_index])
-    
+
 # Function to save labels to a CSV file
 def save_labels_to_file():
     global coordinates_df
@@ -284,9 +275,7 @@ labels_menu_button.pack(side="left")
 labels_menu = tk.Menu(labels_menu_button, tearoff=0)
 #labels_menu.add_command(label="Remove selected labels", command=delete_selected)
 labels_menu.add_command(label="Load Labels from previous slice", command=load_labels_from_previous_slice)
-labels_menu.add_command(label="Save current slice", command=save_labels)
 labels_menu.add_command(label="Clear current slice", command=delete_all_labels)
-labels_menu.add_command(label="Remove current slice", command=root.quit)
 labels_menu_button.config(menu=labels_menu)
 
 
