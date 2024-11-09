@@ -161,11 +161,22 @@ def update_image(val):
 
 # Function to delete selected squares
 def delete_selected():
-    global coordinates_df
-    coordinates_df = coordinates_df[coordinates_df['selected'] == False].reset_index(drop=True)
+    global coordinates_df, current_image_index
+    # Remove the current image index from active_indices of selected squares
+    coordinates_df.loc[coordinates_df['selected'], 'active_indices'] = coordinates_df.loc[coordinates_df['selected'], 'active_indices'].apply(lambda x: [i for i in x if i != current_image_index])
+    
+    # Remove rows where active_indices is empty
+    coordinates_df = coordinates_df[coordinates_df['active_indices'].map(len) > 0].reset_index(drop=True)
+    
+    # Reload the image to reflect changes
     load_image(patient_folder_path, image_names[current_image_index])
     counter_label.config(text=f"Number of squares: {len(coordinates_df)}")
 
+# Save the labels of the current slice
+def save_labels():
+    global coordinates_df
+    coordinates_df['is_saved'] = coordinates_df['is_saved'] | coordinates_df['active_indices'].apply(lambda x: current_image_index in x)
+    load_image(patient_folder_path, image_names[current_image_index])
 
 # --------------------- Layout ---------------------------------
 
@@ -200,7 +211,7 @@ labels_menu_button.pack(side="left")
 labels_menu = tk.Menu(labels_menu_button, tearoff=0)
 #labels_menu.add_command(label="Remove selected labels", command=delete_selected)
 labels_menu.add_command(label="Load Labels from previous slice")
-labels_menu.add_command(label="Save current slice")
+labels_menu.add_command(label="Save current slice", command=save_labels)
 labels_menu.add_command(label="Clear current slice")
 labels_menu.add_command(label="Remove current slice", command=root.quit)
 labels_menu_button.config(menu=labels_menu)
