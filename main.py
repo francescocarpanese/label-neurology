@@ -14,25 +14,21 @@ from datetime import datetime
 CODE_VERSION = "0.0.1"
 
 def init_dataframe():
-    coordinates_df = pd.DataFrame(columns=['x', 'y', 'size', 'selected', 'type', 'active_indices',
-                                           'patient_folder', 'creation_timestamp', 'file_name', 'code_version', 'series_type',
-                                           'instance_number',
+    coordinates_df = pd.DataFrame(columns=['x', 'y', 'size', 'selected', 'label_type', 'active_instance_numbers',
+                                           'patient_folder', 'creation_timestamp', 'code_version', 'series_type',
                                            ])
     return coordinates_df
 
-# Initialize the DataFrame to store the coordinates and selection status
-global coordinates_df
-coordinates_df = init_dataframe()
+state = {
+    'current_instance_index': 0,
+    'patient_folder_path': "",
+    'current_series_type': "",
+    'current_image_name': "",
+    'coordinates_df': init_dataframe(),
+    'series_type_df': pd.DataFrame({'file_name': [], 'series_type': [], 'instance_number': []}),
+    "current_series_type": pd.DataFrame({'file_name': [], 'series_type': [], 'instance_number': []}),
+}
 
-series_type_df = pd.DataFrame({'file_name': [], 'series_type': [], 'instance_number': []})
-
-# Initialize variables to store the image list and current image index
-image_names = []
-current_image_index = 0
-patient_folder_path = ""
-current_series_type = ""
-current_image_name = ""
-current_instance_number = ""
 
 # Variables for drag-and-drop
 dragging = False
@@ -80,60 +76,63 @@ def get_square_size():
         return int(square_size_entry.get())
     except ValueError:
         return default_square_size  # Return default size if input is invalid
-    
+
+def get_instance_number(file_name):
+    return state['series_type_df'][state['series_type_df']['file_name'] == file_name]['instance_number'].values[0]
 
 # Function to select a folder
 def select_folder():
-    global image_names, current_image_index, patient_folder_path, coordinates_df, series_type_df, current_series_type, current_image_name, current_instance_number
     folder_selected = filedialog.askdirectory()
     if folder_selected:
-        patient_folder_path = folder_selected
-        current_image_index = 0
-        coordinates_df = init_dataframe()
-        series_type_df = get_series_description(folder_selected)
-        current_series_type = series_type_df['series_type'].iloc[0]
-        image_names = series_type_df[series_type_df['series_type'] == current_series_type].sort_values('instance_number')['file_name'].tolist()
-        current_image_name = image_names[current_image_index]        
-        load_image(patient_folder_path, image_names[current_image_index])
-        slider.config(to=len(image_names) - 1)
-        slider.set(current_image_index)
-        series_type_combo.config(text=current_series_type, values=list(series_type_df['series_type'].unique()))
-        series_type_combo.set(current_series_type)
+        # Set state
+        state['patient_folder_path'] = folder_selected
+        state['coordinates_df'] = init_dataframe()
+        state['series_type_df'] = get_series_description(folder_selected)
+        state['current_series_type'] = state['series_type_df']['series_type'].iloc[0]
+        state['current_series_type_df'] =  state['series_type_df'][state['series_type_df']['series_type'] == state['current_series_type']].sort_values(by='instance_number')
+        state['current_image_name'] = state['current_series_type_df']['file_name'].iloc[0]
+        state['current_instance_index'] = 0
+        # Update the GUI
+        load_image()
+        slider.config(to=state['current_series_type_df'].shape[0] - 1)
+        slider.set(state['current_instance_index'])
+        series_type_combo.config(text=state['current_series_type'], values=list(state['series_type_df']['series_type'].unique()))
+        series_type_combo.set(state['current_series_type'])
 
-# Function to handle series type selection
+# Function to handle series label_type selection
 def on_series_type_selected(event):
-    global image_names, current_image_index, current_series_type, series_type_df, current_image_name
+    global image_names, current_instance_index, current_series_type, series_type_df, current_image_name
     selected_series_type = series_type_combo.get()
     if selected_series_type:
         current_series_type = selected_series_type
         image_names = series_type_df[series_type_df['series_type'] == current_series_type].sort_values('instance_number')['file_name'].tolist()
-        current_image_index = 0
-        current_image_name = image_names[current_image_index]
-        load_image(patient_folder_path, image_names[current_image_index])
+        current_instance_index = 0
+        current_image_name = current_image_name
+        load_image()
         slider.config(to=len(image_names) - 1)
-        slider.set(current_image_index)
+        slider.set(current_instance_index)
 
-# Get color depending on type
+# Get color depending on label_type
 def get_color(row):
     if row['selected']:
         return 'yellow'
     else:
-        return row['type']
+        return row['label_type']
         
 # Get linestyle depending is_saved
 def get_linestyle(row):
-    if len(row['active_indices']) >1:
+    if len(row['active_instance_numbers']) >1:
         # In this case the corrent square is part of more than one slice
         return ':'
     return '-'
 
 # Plot all the squares on the image of a given active index
 def plot_squares():
-    global ax, canvas, coordinates_df, current_image_index, current_image_name, series_type_df
-    # Draw all squares, highlighting if selected and if the current index is part of active indices
-    for _, row in coordinates_df.iterrows():
-        current_instance_number = series_type_df[series_type_df['file_name'] == current_image_name]['instance_number'].values[0]
-        if current_instance_number in row['active_indices']:
+    global ax, canvas
+    for _, row in state['coordinates_df'].iterrows():
+        series_type_df = state['series_type_df']
+        current_instance_number = series_type_df[series_type_df['file_name'] == state['current_image_name']]['instance_number'].values[0]
+        if current_instance_number in row['active_instance_numbers']:
             color = get_color(row)
             linestyle = get_linestyle(row)
             square = Rectangle((row['x'] - row['size'] / 2, row['y'] - row['size'] / 2), row['size'], row['size'],
@@ -141,15 +140,17 @@ def plot_squares():
             ax.add_patch(square)
 
 # Function to load and display an image
-def load_image(folder_path, image_name):
-    global ax, canvas, coordinates_df, current_image_index
-    ds = dcmread(os.path.join(folder_path, image_name))
+def load_image():
+    image_file_path = os.path.join(state['patient_folder_path'], state['current_image_name'])
+
+    # Get image
+    ds = dcmread(image_file_path)
     
     # Plot the image 
     image_array = ds.pixel_array
     ax.clear()
     ax.imshow(image_array, cmap='gray')
-    ax.set_title(f"Image: {image_name}")
+    ax.set_title(f"Image: {state['current_image_name']}")
     
     # Plot all annotation    
     plot_squares()
@@ -159,11 +160,11 @@ def load_image(folder_path, image_name):
 
 # Function to handle mouse clicks, adding or selecting squares
 def on_click(event):
-    global coordinates_df, dragging, selected_square_index
+    global dragging, selected_square_index
     if event.button == MouseButton.LEFT and event.inaxes:
         x, y = event.xdata, event.ydata
         square_size = get_square_size()
-        
+        series_type_df = state['series_type_df']
 
         # Get current instance number to add to the active indices
         current_instance_number = series_type_df[series_type_df['file_name'] == current_image_name]['instance_number'].values[0]        
@@ -171,12 +172,12 @@ def on_click(event):
         # Check if the click is near an existing square
         #threshold_distance = square_size / 2  # Distance to consider a square selected
         for i, row in coordinates_df.iterrows():
-            if abs((row['x'] - x))< square_size/2 and abs((row['y'] - y)) <  square_size/2  and current_instance_number in row['active_indices']:
+            if abs((row['x'] - x))< square_size/2 and abs((row['y'] - y)) <  square_size/2  and current_instance_number in row['active_instance_numbers']:
                 # Toggle selection if not dragging, else start dragging
                 coordinates_df.at[i, 'selected'] = not row['selected']
                 selected_square_index = i
                 dragging = coordinates_df.at[i, 'selected']
-                load_image(patient_folder_path, image_names[current_image_index])
+                load_image()
                 update_label_counts()
                 return
             
@@ -188,16 +189,16 @@ def on_click(event):
                 'y': [y],
                 'size': [square_size],
                 'selected': [False],
-                'type': [label_type.get()],
-                'active_indices': [[current_instance_number]],
-                'patient_folder': [patient_folder_path],
+                'label_type': [label_type.get()],
+                'active_instance_numbers': [[current_instance_number]],
+                'patient_folder': [state['patient_folder_path']],
                 'creation_timestamp': [pd.Timestamp.now()],
-                'file_name': [image_names[current_image_index]],
+                'file_name': [current_image_name],
                 'code_version': [CODE_VERSION]
                 },
             )
         coordinates_df = pd.concat([coordinates_df, new_row], ignore_index=True)
-        load_image(patient_folder_path, image_names[current_image_index])
+        load_image()
         update_label_counts()
 
 
@@ -209,7 +210,7 @@ def on_motion(event):
         # Update the selected square’s center coordinates
         coordinates_df.at[selected_square_index, 'x'] = x
         coordinates_df.at[selected_square_index, 'y'] = y
-        load_image(patient_folder_path, image_names[current_image_index]) 
+        load_image() 
 
 # Function to handle mouse release and stop dragging
 def on_release(event):
@@ -219,45 +220,48 @@ def on_release(event):
 
 # Function to move to the previous image
 def previous_image():
-    global current_image_index
-    if current_image_index > 0:
-        current_image_index -= 1
+    min_value = slider.cget('from')
+    if state['current_instance_index'] > min_value:
+        state['current_instance_index'] -= 1
+        state['current_image_name'] = state['current_series_type_df']['file_name'].iloc[state['current_instance_index']]
         unselect_all()
-        load_image(patient_folder_path, image_names[current_image_index])
-        slider.set(current_image_index)
+        load_image()
+        slider.set(state['current_instance_index'])
         update_label_counts()
 
 # Function to move to the next image
 def next_image():
-    global current_image_index
-    if current_image_index < len(image_names) - 1:
-        current_image_index += 1
+    # Get the length of the slider
+    max_value = slider.cget('to')
+    
+    if state['current_instance_index'] < max_value:
+        state['current_instance_index'] += 1
+        state['current_image_name'] = state['current_series_type_df']['file_name'].iloc[state['current_instance_index']]
         unselect_all()
-        load_image(patient_folder_path, image_names[current_image_index])
-        slider.set(current_image_index)
+        load_image()
+        slider.set(state['current_instance_index'])
         update_label_counts()
 
 # Function to update the image based on the slider value
-def update_image(val):
-    global current_image_index
-    current_image_index = int(val)
+def update_image_slider(val):
+    state['current_instance_index'] = int(val)
     unselect_all()
-    load_image(patient_folder_path, image_names[current_image_index])
+    load_image()
 
 # Function to delete selected squares
 def delete_selected():
-    global coordinates_df, current_image_index
+    global coordinates_df, current_instance_index, current_image_name, series_type_df
     
-    # Remove the current instance number from active_indices of all selected squares
+    # Remove the current instance number from active_instance_numbers of all selected squares
     current_instance_number = series_type_df[series_type_df['file_name'] == current_image_name]['instance_number'].values[0]
-    coordinates_df.loc[coordinates_df['selected'], 'active_indices'] = coordinates_df.loc[coordinates_df['selected'], 'active_indices'].apply(lambda x: [i for i in x if i != current_instance_number])
+    coordinates_df.loc[coordinates_df['selected'], 'active_instance_numbers'] = coordinates_df.loc[coordinates_df['selected'], 'active_instance_numbers'].apply(lambda x: [i for i in x if i != current_instance_number])
     
-    # Remove rows where active_indices is empty
-    coordinates_df = coordinates_df[coordinates_df['active_indices'].map(len) > 0].reset_index(drop=True)
+    # Remove rows where active_instance_numbers is empty
+    coordinates_df = coordinates_df[coordinates_df['active_instance_numbers'].map(len) > 0].reset_index(drop=True)
     
     # Reload the image to reflect changes
     unselect_all()
-    load_image(patient_folder_path, image_names[current_image_index])
+    load_image()
     update_label_counts()
 
 
@@ -279,46 +283,67 @@ def load_labels_from_file():
     if file_path:
         # Load the DataFrame from the specified CSV file
         coordinates_df = pd.read_csv(file_path)
-        # Convert 'active_indices' from string representation of list to actual list
-        coordinates_df['active_indices'] = coordinates_df['active_indices'].apply(eval)
-        load_image(patient_folder_path, image_names[current_image_index])
+        # Convert 'active_instance_numbers' from string representation of list to actual list
+        coordinates_df['active_instance_numbers'] = coordinates_df['active_instance_numbers'].apply(eval)
+        load_image()
         update_label_counts()
         
 # Function to delete all labels in the current slice
 def delete_all_labels_slides():
     if tk.messagebox.askyesno("Confirm Delete", "Are you sure you want to delete all labels in the current slice?"):
-        global coordinates_df, current_image_index, current_image_name
+        global coordinates_df, current_instance_index, current_image_name
         current_instance_number = series_type_df[series_type_df['file_name'] == current_image_name]['instance_number'].values[0]
         
-        # Remove the current image index from active_indices of all squares
-        coordinates_df['active_indices'] = coordinates_df['active_indices'].apply(lambda x: [i for i in x if i != current_instance_number])
+        # Remove the current image index from active_instance_numbers of all squares
+        coordinates_df['active_instance_numbers'] = coordinates_df['active_instance_numbers'].apply(lambda x: [i for i in x if i != current_instance_number])
         
-        # Remove rows where active_indices is empty
-        coordinates_df = coordinates_df[coordinates_df['active_indices'].map(len) > 0].reset_index(drop=True)
+        # Remove rows where active_instance_numbers is empty
+        coordinates_df = coordinates_df[coordinates_df['active_instance_numbers'].map(len) > 0].reset_index(drop=True)
         
         # Reload the image to reflect changes
-        load_image(patient_folder_path, image_names[current_image_index])
+        load_image()
         update_label_counts()
         # Function to show a confirmation dialog before deleting all labels
 
 # Function to load labels from the previous slice
 def load_labels_from_previous_slice():
-    global coordinates_df, current_image_index, current_image_name, series_type_df
-    if current_image_index > 0:
-        previous_index = current_image_index - 1
-        
-#        previous_instance_number = series_type_df[series_type_df['file_name'] == image_names[previous_index]]['instance_number'].values[0]
-        # Update the active indices of the existing rows that contain the previous index
-        coordinates_df.loc[coordinates_df['active_indices'].apply(lambda x: previous_index in x), 'active_indices'] = coordinates_df.loc[coordinates_df['active_indices'].apply(lambda x: previous_index in x), 'active_indices'].apply(lambda x: x + [current_image_index])
+    global coordinates_df, current_instance_index, current_image_name, series_type_df
+    if current_instance_index > 0:
+
+        current_series_type = series_type_df[series_type_df['file_name'] == current_image_name]['series_type'].values[0]
+        series_images_df = series_type_df[series_type_df['series_type'] == current_series_type].sort_values('instance_number')
+        current_instance_number = series_images_df[series_images_df['file_name'] == current_image_name]['instance_number'].values[0]
+        previous_instance_number = series_images_df[series_images_df['instance_number'] < current_instance_number].iloc[-1]['instance_number']
+        for i, row in coordinates_df.iterrows():
+            if previous_instance_number in row['active_instance_numbers']:
+                coordinates_df.at[i, 'active_instance_numbers'].append(current_instance_number)
+            
         unselect_all()
-        load_image(patient_folder_path, image_names[current_image_index])
+        load_image()
         update_label_counts()
 
 # Create function to unselect all squares
 def unselect_all():
-    global coordinates_df
-    coordinates_df['selected'] = False
-    load_image(patient_folder_path, image_names[current_image_index])
+    state['coordinates_df']['selected'] = False
+
+# Function to update the total label counts
+def update_label_counts():
+    coordinates_df = state['coordinates_df']
+    tot_green_count = len(coordinates_df[coordinates_df['label_type'] == 'green'])
+    tot_red_count = len(coordinates_df[coordinates_df['label_type'] == 'red'])
+    tot_blue_count = len(coordinates_df[coordinates_df['label_type'] == 'blue'])
+    
+    total_green_label_count.config(text=f"Total Green Labels: {tot_green_count}")
+    total_red_label_count.config(text=f"Total Red Labels: {tot_red_count}")
+    total_blue_label_count.config(text=f"Total Blue Labels: {tot_blue_count}")
+
+    green_count = len(coordinates_df[(coordinates_df['label_type'] == 'green') & (coordinates_df['active_instance_numbers'].apply(lambda x: current_instance_index in x))])
+    red_count = len(coordinates_df[(coordinates_df['label_type'] == 'red') & (coordinates_df['active_instance_numbers'].apply(lambda x: current_instance_index in x))])
+    blue_count = len(coordinates_df[(coordinates_df['label_type'] == 'blue') & (coordinates_df['active_instance_numbers'].apply(lambda x: current_instance_index in x))])
+    
+    green_label_count.config(text=f"Green Labels in slice: {green_count}")
+    red_label_count.config(text=f"Red Total Labels in slice: {red_count}")
+    blue_label_count.config(text=f"Blue Total Labels in slice: {blue_count}")
 
 
 # --------------------- Layout ---------------------------------
@@ -383,13 +408,13 @@ previous_image_button = tk.Button(button_frame, text="Previous Image", command=p
 previous_image_button.grid(row=0, column=0, padx=5, pady=5)
 
 # Create a slider to move between images
-slider = tk.Scale(button_frame, from_=0, to=0, orient=tk.HORIZONTAL, command=update_image)
+slider = tk.Scale(button_frame, from_=0, to=0, orient=tk.HORIZONTAL, command=update_image_slider)
 slider.grid(row=0, column=1, columnspan=2, sticky='ew', padx=5, pady=5)
 
 next_image_button = tk.Button(button_frame, text="Next Image", command=next_image)
 next_image_button.grid(row=0, column=3, padx=5, pady=5)
 
-# Create dropdown to select the series type
+# Create dropdown to select the series label_type
 series_type_combo = ttk.Combobox(button_frame, values=[], state='readonly', width=20)
 series_type_combo.grid(row=1, column=1, columnspan=2, padx=5, pady=5)
 
@@ -402,7 +427,7 @@ square_size_entry = tk.Entry(button_frame, width=5)
 square_size_entry.insert(0, str(default_square_size))  # Set default square size
 square_size_entry.grid(row=0, column=6, padx=0, pady=0)
 
-# Create dropdown to select the type of label
+# Create dropdown to select the label_type of label
 label_type = ttk.Combobox(button_frame, values=['green', 'red', 'blue'], state='readonly', width=5)
 label_type.set('green')
 label_type.grid(row=1, column=5)
@@ -457,24 +482,6 @@ total_red_label_count.grid(row=0, column=2, padx=5, pady=5)
 total_blue_label_count = tk.Label(total_counter_frame, text="Total Blue Labels: 0")
 total_blue_label_count.grid(row=0, column=3, padx=5, pady=5)
 
-# Function to update the total label counts
-def update_label_counts():
-    tot_green_count = len(coordinates_df[coordinates_df['type'] == 'green'])
-    tot_red_count = len(coordinates_df[coordinates_df['type'] == 'red'])
-    tot_blue_count = len(coordinates_df[coordinates_df['type'] == 'blue'])
-    
-    total_green_label_count.config(text=f"Total Green Labels: {tot_green_count}")
-    total_red_label_count.config(text=f"Total Red Labels: {tot_red_count}")
-    total_blue_label_count.config(text=f"Total Blue Labels: {tot_blue_count}")
-
-    green_count = len(coordinates_df[(coordinates_df['type'] == 'green') & (coordinates_df['active_indices'].apply(lambda x: current_image_index in x))])
-    red_count = len(coordinates_df[(coordinates_df['type'] == 'red') & (coordinates_df['active_indices'].apply(lambda x: current_image_index in x))])
-    blue_count = len(coordinates_df[(coordinates_df['type'] == 'blue') & (coordinates_df['active_indices'].apply(lambda x: current_image_index in x))])
-    
-    green_label_count.config(text=f"Green Labels in slice: {green_count}")
-    red_label_count.config(text=f"Red Total Labels in slice: {red_count}")
-    blue_label_count.config(text=f"Blue Total Labels in slice: {blue_count}")
-
 
 # Configure the grid to expand properly
 root.grid_rowconfigure(1, weight=1)
@@ -485,7 +492,7 @@ root.grid_columnconfigure(1, weight=1)
 canvas.mpl_connect('button_press_event', on_click)
 canvas.mpl_connect('motion_notify_event', on_motion)
 canvas.mpl_connect('button_release_event', on_release)
-# Bind the series type combo box to the selection function
+# Bind the series label_type combo box to the selection function
 series_type_combo.bind("<<ComboboxSelected>>", on_series_type_selected)
 
 # Start the Tkinter event loop
