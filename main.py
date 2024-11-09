@@ -130,9 +130,8 @@ def get_linestyle(row):
 def plot_squares():
     global ax, canvas
     for _, row in state['coordinates_df'].iterrows():
-        series_type_df = state['series_type_df']
-        current_instance_number = series_type_df[series_type_df['file_name'] == state['current_image_name']]['instance_number'].values[0]
-        if current_instance_number in row['active_instance_numbers']:
+        current_instance_number = get_instance_number(state['current_image_name'])
+        if current_instance_number in row['active_instance_numbers'] and row['series_type'] == state['current_series_type']:
             color = get_color(row)
             linestyle = get_linestyle(row)
             square = Rectangle((row['x'] - row['size'] / 2, row['y'] - row['size'] / 2), row['size'], row['size'],
