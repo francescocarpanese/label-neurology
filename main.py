@@ -248,15 +248,11 @@ def update_image_slider(val):
 
 # Function to delete selected squares
 def delete_selected():
-    global coordinates_df, current_image_idx, current_image_name, series_type_df
-    
     # Remove the current instance number from active_instance_numbers of all selected squares
-    current_instance_number = series_type_df[series_type_df['file_name'] == current_image_name]['instance_number'].values[0]
-    state['coordinates_df'].loc[coordinates_df['selected'], 'active_instance_numbers'] = state['coordinates_df'].loc[coordinates_df['selected'], 'active_instance_numbers'].apply(lambda x: [i for i in x if i != current_instance_number])
-    
+    current_instance_number = get_instance_number(state['current_image_name'])
+    state['coordinates_df'].loc[state['coordinates_df']['selected'], 'active_instance_numbers'] = state['coordinates_df'].loc[state['coordinates_df']['selected'], 'active_instance_numbers'].apply(lambda x: [i for i in x if i != current_instance_number])
     # Remove rows where active_instance_numbers is empty
-    coordinates_df = coordinates_df[coordinates_df['active_instance_numbers'].map(len) > 0].reset_index(drop=True)
-    
+    state['coordinates_df'] = state['coordinates_df'][state['coordinates_df']['active_instance_numbers'].map(len) > 0].reset_index(drop=True)
     # Reload the image to reflect changes
     unselect_all()
     load_image()
@@ -265,8 +261,6 @@ def delete_selected():
 
 # Function to save labels to a CSV file
 def save_labels_to_file():
-    global coordinates_df
-    # Open a file dialog to select the folder and specify the file name
     file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
     if file_path:
         # Save the DataFrame to the specified CSV file
@@ -275,46 +269,45 @@ def save_labels_to_file():
         
 # Function to load labels from a CSV file
 def load_labels_from_file():
-    global coordinates_df
     # Open a file dialog to select the CSV file
     file_path = filedialog.askopenfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
     if file_path:
         # Load the DataFrame from the specified CSV file
-        coordinates_df = pd.read_csv(file_path)
+        state['coordinates_df'] = pd.read_csv(file_path)
         # Convert 'active_instance_numbers' from string representation of list to actual list
-        coordinates_df['active_instance_numbers'] = coordinates_df['active_instance_numbers'].apply(eval)
+        state['coordinates_df']['active_instance_numbers'] = state['coordinates_df']['active_instance_numbers'].apply(eval)
         load_image()
         update_label_counts()
         
 # Function to delete all labels in the current slice
 def delete_all_labels_slides():
     if tk.messagebox.askyesno("Confirm Delete", "Are you sure you want to delete all labels in the current slice?"):
-        global coordinates_df, current_image_idx, current_image_name
-        current_instance_number = series_type_df[series_type_df['file_name'] == current_image_name]['instance_number'].values[0]
-        
-        # Remove the current image index from active_instance_numbers of all squares
-        coordinates_df['active_instance_numbers'] = coordinates_df['active_instance_numbers'].apply(lambda x: [i for i in x if i != current_instance_number])
+
+        current_instance_number = get_instance_number(state['current_image_name'])
+        # Remove this instance from all active_instance_numbers
+        state['coordinates_df']['active_instance_numbers'] = state['coordinates_df']['active_instance_numbers'].apply(lambda x: [i for i in x if i != current_instance_number])
         
         # Remove rows where active_instance_numbers is empty
-        coordinates_df = coordinates_df[coordinates_df['active_instance_numbers'].map(len) > 0].reset_index(drop=True)
-        
-        # Reload the image to reflect changes
+        state['coordinates_df'] = state['coordinates_df'][state['coordinates_df']['active_instance_numbers'].map(len) > 0].reset_index(drop=True)
+
         load_image()
         update_label_counts()
-        # Function to show a confirmation dialog before deleting all labels
+
 
 # Function to load labels from the previous slice
 def load_labels_from_previous_slice():
-    global coordinates_df, current_image_idx, current_image_name, series_type_df
-    if current_image_idx > 0:
 
-        current_series_type = series_type_df[series_type_df['file_name'] == current_image_name]['series_type'].values[0]
-        series_images_df = series_type_df[series_type_df['series_type'] == current_series_type].sort_values('instance_number')
-        current_instance_number = series_images_df[series_images_df['file_name'] == current_image_name]['instance_number'].values[0]
-        previous_instance_number = series_images_df[series_images_df['instance_number'] < current_instance_number].iloc[-1]['instance_number']
+    if state['current_image_idx'] > 0:
+        # Retrieve the instance number of the previous image
+        images_names = state['current_series_type_df']['file_name'].values.tolist()
+        idx_current_image = images_names.index(state['current_image_name'])
+        previous_image_name = images_names[idx_current_image - 1]
+        previous_instance_number = get_instance_number(previous_image_name)
+        current_instance_number = get_instance_number(state['current_image_name'])  
         for i, row in state['coordinates_df'].iterrows():
             if previous_instance_number in row['active_instance_numbers']:
                 state['coordinates_df'].at[i, 'active_instance_numbers'].append(current_instance_number)
+
             
         unselect_all()
         load_image()
@@ -329,17 +322,17 @@ def update_label_counts():
     coordinates_df = state['coordinates_df']
     current_instance_number = get_instance_number(state['current_image_name'])
     
-    tot_green_count = len(coordinates_df[coordinates_df['label_type'] == 'green'])
-    tot_red_count = len(coordinates_df[coordinates_df['label_type'] == 'red'])
-    tot_blue_count = len(coordinates_df[coordinates_df['label_type'] == 'blue'])
+    tot_green_count = len(state['coordinates_df'][state['coordinates_df']['label_type'] == 'green'])
+    tot_red_count = len(state['coordinates_df'][state['coordinates_df']['label_type'] == 'red'])
+    tot_blue_count = len(state['coordinates_df'][state['coordinates_df']['label_type'] == 'blue'])
     
     total_green_label_count.config(text=f"Total Green Labels: {tot_green_count}")
     total_red_label_count.config(text=f"Total Red Labels: {tot_red_count}")
     total_blue_label_count.config(text=f"Total Blue Labels: {tot_blue_count}")
 
-    green_count = len(coordinates_df[(coordinates_df['label_type'] == 'green') & (coordinates_df['active_instance_numbers'].apply(lambda x: current_instance_number in x))])
-    red_count = len(coordinates_df[(coordinates_df['label_type'] == 'red') & (coordinates_df['active_instance_numbers'].apply(lambda x: current_instance_number in x))])
-    blue_count = len(coordinates_df[(coordinates_df['label_type'] == 'blue') & (coordinates_df['active_instance_numbers'].apply(lambda x: current_instance_number in x))])
+    green_count = len(state['coordinates_df'][(state['coordinates_df']['label_type'] == 'green') & (state['coordinates_df']['active_instance_numbers'].apply(lambda x: current_instance_number in x))])
+    red_count = len(state['coordinates_df'][(state['coordinates_df']['label_type'] == 'red') & (state['coordinates_df']['active_instance_numbers'].apply(lambda x: current_instance_number in x))])
+    blue_count = len(state['coordinates_df'][(state['coordinates_df']['label_type'] == 'blue') & (state['coordinates_df']['active_instance_numbers'].apply(lambda x: current_instance_number in x))])
     
     green_label_count.config(text=f"Green Labels in slice: {green_count}")
     red_label_count.config(text=f"Red Total Labels in slice: {red_count}")
