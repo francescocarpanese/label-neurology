@@ -11,8 +11,10 @@ from pydicom import dcmread
 import numpy as np
 from tkinter import ttk
 
+CODE_VERSION = "0.0.1"
+
 # Initialize the DataFrame to store the coordinates and selection status
-coordinates_df = pd.DataFrame(columns=['x', 'y', 'size', 'selected', 'type', 'active_indices', 'is_saved' ])
+coordinates_df = pd.DataFrame(columns=['x', 'y', 'size', 'selected', 'type', 'active_indices', 'is_saved', 'patient_folder', 'creation_timestamp', 'file_name', 'code_version' ])
 
 # Initialize variables to store the image list and current image index
 image_names = []
@@ -114,7 +116,11 @@ def on_click(event):
                 'selected': [False],
                 'type': [label_type.get()],
                 'active_indices': [[current_image_index]],
-                'is_saved': [False]
+                'is_saved': [False],
+                'patient_folder': [patient_folder_path],
+                'creation_timestamp': [pd.Timestamp.now()],
+                'file_name': [image_names[current_image_index]],
+                'code_version': [CODE_VERSION]
                 },
             )
         coordinates_df = pd.concat([coordinates_df, new_row], ignore_index=True)
@@ -177,6 +183,16 @@ def save_labels():
     global coordinates_df
     coordinates_df['is_saved'] = coordinates_df['is_saved'] | coordinates_df['active_indices'].apply(lambda x: current_image_index in x)
     load_image(patient_folder_path, image_names[current_image_index])
+    
+# Function to save labels to a CSV file
+def save_labels_to_file():
+    global coordinates_df
+    # Open a file dialog to select the folder and specify the file name
+    file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
+    if file_path:
+        # Save the DataFrame to the specified CSV file
+        coordinates_df.to_csv(file_path, index=False)
+        tk.messagebox.showinfo("Save Labels", f"Labels saved to {file_path}")
 
 # --------------------- Layout ---------------------------------
 
@@ -196,11 +212,11 @@ file_menu_button.pack(side="left")
 
 # Create "File" menu
 file_menu = tk.Menu(file_menu_button, tearoff=0)
-file_menu.add_command(label="Open Images", command=select_folder)
-file_menu.add_command(label="Load Labels")
-file_menu.add_command(label="Save Labels")
-file_menu.add_command(label="Export images with Labels")
-file_menu.add_command(label="Save Report", command=root.quit)
+file_menu.add_command(label="Open Images from Folder", command=select_folder)
+file_menu.add_command(label="Load Labels from File")
+file_menu.add_command(label="Save Labels to File", command=save_labels_to_file)
+file_menu.add_command(label="Export images with Labels to File")
+file_menu.add_command(label="Save Report to File", command=root.quit)
 file_menu_button.config(menu=file_menu)
 
 # Create "File" menu button
