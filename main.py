@@ -125,7 +125,8 @@ def on_click(event):
             )
         coordinates_df = pd.concat([coordinates_df, new_row], ignore_index=True)
         load_image(patient_folder_path, image_names[current_image_index])
-        counter_label.config(text=f"Number of squares: {len(coordinates_df)}")
+        update_label_counts()
+
 
 # Function to handle mouse motion for dragging
 def on_motion(event):
@@ -150,6 +151,7 @@ def previous_image():
         current_image_index -= 1
         load_image(patient_folder_path, image_names[current_image_index])
         slider.set(current_image_index)
+        update_label_counts()
 
 # Function to move to the next image
 def next_image():
@@ -158,6 +160,7 @@ def next_image():
         current_image_index += 1
         load_image(patient_folder_path, image_names[current_image_index])
         slider.set(current_image_index)
+        update_label_counts()
 
 # Function to update the image based on the slider value
 def update_image(val):
@@ -176,7 +179,7 @@ def delete_selected():
     
     # Reload the image to reflect changes
     load_image(patient_folder_path, image_names[current_image_index])
-    counter_label.config(text=f"Number of squares: {len(coordinates_df)}")
+    update_label_counts()
 
 # Save the labels of the current slice
 def save_labels():
@@ -193,6 +196,46 @@ def save_labels_to_file():
         # Save the DataFrame to the specified CSV file
         coordinates_df.to_csv(file_path, index=False)
         tk.messagebox.showinfo("Save Labels", f"Labels saved to {file_path}")
+        
+# Function to load labels from a CSV file
+def load_labels_from_file():
+    global coordinates_df
+    # Open a file dialog to select the CSV file
+    file_path = filedialog.askopenfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
+    if file_path:
+        # Load the DataFrame from the specified CSV file
+        coordinates_df = pd.read_csv(file_path)
+        # Convert 'active_indices' from string representation of list to actual list
+        coordinates_df['active_indices'] = coordinates_df['active_indices'].apply(eval)
+        load_image(patient_folder_path, image_names[current_image_index])
+        update_label_counts()
+        
+# Function to delete all labels in the current slice
+def delete_all_labels():
+    global coordinates_df, current_image_index
+    # Remove the current image index from active_indices of all squares
+    coordinates_df['active_indices'] = coordinates_df['active_indices'].apply(lambda x: [i for i in x if i != current_image_index])
+    
+    # Remove rows where active_indices is empty
+    coordinates_df = coordinates_df[coordinates_df['active_indices'].map(len) > 0].reset_index(drop=True)
+    
+    # Reload the image to reflect changes
+    load_image(patient_folder_path, image_names[current_image_index])
+    update_label_counts()
+    
+# Function to load labels from the previous slice
+def load_labels_from_previous_slice():
+    global coordinates_df, current_image_index
+    if current_image_index > 0:
+        previous_index = current_image_index - 1
+        # Get labels from the previous slice
+        previous_labels = coordinates_df[coordinates_df['active_indices'].apply(lambda x: previous_index in x)].copy()
+        # Add the current image index to the active indices of these labels
+        previous_labels['active_indices'] = previous_labels['active_indices'].apply(lambda x: x + [current_image_index])
+        # Append these labels to the coordinates DataFrame
+        coordinates_df = pd.concat([coordinates_df, previous_labels], ignore_index=True)
+        load_image(patient_folder_path, image_names[current_image_index])
+        update_label_counts()
 
 # --------------------- Layout ---------------------------------
 
@@ -213,8 +256,8 @@ file_menu_button.pack(side="left")
 # Create "File" menu
 file_menu = tk.Menu(file_menu_button, tearoff=0)
 file_menu.add_command(label="Open Images from Folder", command=select_folder)
-file_menu.add_command(label="Load Labels from File")
 file_menu.add_command(label="Save Labels to File", command=save_labels_to_file)
+file_menu.add_command(label="Load Labels from File", command=load_labels_from_file)
 file_menu.add_command(label="Export images with Labels to File")
 file_menu.add_command(label="Save Report to File", command=root.quit)
 file_menu_button.config(menu=file_menu)
@@ -228,7 +271,7 @@ labels_menu = tk.Menu(labels_menu_button, tearoff=0)
 #labels_menu.add_command(label="Remove selected labels", command=delete_selected)
 labels_menu.add_command(label="Load Labels from previous slice")
 labels_menu.add_command(label="Save current slice", command=save_labels)
-labels_menu.add_command(label="Clear current slice")
+labels_menu.add_command(label="Clear current slice", command=delete_all_labels)
 labels_menu.add_command(label="Remove current slice", command=root.quit)
 labels_menu_button.config(menu=labels_menu)
 
@@ -294,8 +337,10 @@ label_type = ttk.Combobox(button_frame, values=['green', 'red', 'blue'], state='
 label_type.set('green')
 label_type.grid(row=0, column=8)
 
-## Create a horizontal separator
+## -- Create a horizontal separator
 ttk.Separator(root, orient='horizontal').grid(row=4, column=0, columnspan=2, sticky='ew', padx=5, pady=5)
+
+## -- Create a frame for information on the slide
 
 ## -- Bottom frame for information
 # Create a frame for the counter at the bottom
@@ -303,8 +348,50 @@ counter_frame = tk.Frame(root)
 counter_frame.grid(row=5, column=0, columnspan=2, padx=5, pady=5)
 
 # Create a label to display the counter
-counter_label = tk.Label(counter_frame, text="Number Total Squares: 0")
-counter_label.grid(row=0, column=0, padx=5, pady=5)
+green_label_count = tk.Label(counter_frame, text="Green Labels in slice: 0")
+green_label_count.grid(row=0, column=1, padx=5, pady=5)
+
+red_label_count = tk.Label(counter_frame, text="Red Total Labels in slice: 0")
+red_label_count.grid(row=0, column=2, padx=5, pady=5)
+
+blue_label_count = tk.Label(counter_frame, text="Blue Total Labels in slice: 0")
+blue_label_count.grid(row=0, column=3, padx=5, pady=5)
+
+## -- Create a horizontal separator
+ttk.Separator(root, orient='horizontal').grid(row=6, column=0, columnspan=2, sticky='ew', padx=5, pady=5)
+
+## -- Bottom frame for information on the total number of squares
+# Create a frame for the total counter at the bottom
+total_counter_frame = tk.Frame(root)
+total_counter_frame.grid(row=7, column=0, columnspan=2, padx=5, pady=5)
+
+# Create labels to display the total counter
+total_green_label_count = tk.Label(total_counter_frame, text="Total Green Labels: 0")
+total_green_label_count.grid(row=0, column=1, padx=5, pady=5)
+
+total_red_label_count = tk.Label(total_counter_frame, text="Total Red Labels: 0")
+total_red_label_count.grid(row=0, column=2, padx=5, pady=5)
+
+total_blue_label_count = tk.Label(total_counter_frame, text="Total Blue Labels: 0")
+total_blue_label_count.grid(row=0, column=3, padx=5, pady=5)
+
+# Function to update the total label counts
+def update_label_counts():
+    green_count = len(coordinates_df[coordinates_df['type'] == 'green'])
+    red_count = len(coordinates_df[coordinates_df['type'] == 'red'])
+    blue_count = len(coordinates_df[coordinates_df['type'] == 'blue'])
+    
+    total_green_label_count.config(text=f"Total Green Labels: {green_count}")
+    total_red_label_count.config(text=f"Total Red Labels: {red_count}")
+    total_blue_label_count.config(text=f"Total Blue Labels: {blue_count}")
+
+    green_count = len(coordinates_df[(coordinates_df['type'] == 'green') & (coordinates_df['active_indices'].apply(lambda x: current_image_index in x))])
+    red_count = len(coordinates_df[(coordinates_df['type'] == 'red') & (coordinates_df['active_indices'].apply(lambda x: current_image_index in x))])
+    blue_count = len(coordinates_df[(coordinates_df['type'] == 'blue') & (coordinates_df['active_indices'].apply(lambda x: current_image_index in x))])
+    
+    green_label_count.config(text=f"Green Labels in slice: {green_count}")
+    red_label_count.config(text=f"Red Total Labels in slice: {red_count}")
+    blue_label_count.config(text=f"Blue Total Labels in slice: {blue_count}")
 
 
 # Configure the grid to expand properly
