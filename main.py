@@ -13,8 +13,13 @@ from tkinter import ttk
 
 CODE_VERSION = "0.0.1"
 
+def init_dataframe():
+    coordinates_df = pd.DataFrame(columns=['x', 'y', 'size', 'selected', 'type', 'active_indices', 'patient_folder', 'creation_timestamp', 'file_name', 'code_version' ])
+    return coordinates_df
+
 # Initialize the DataFrame to store the coordinates and selection status
-coordinates_df = pd.DataFrame(columns=['x', 'y', 'size', 'selected', 'type', 'active_indices', 'patient_folder', 'creation_timestamp', 'file_name', 'code_version' ])
+global coordinates_df
+coordinates_df = init_dataframe()
 
 # Initialize variables to store the image list and current image index
 image_names = []
@@ -35,12 +40,13 @@ def get_square_size():
 
 # Function to select a folder
 def select_folder():
-    global image_names, current_image_index, patient_folder_path
+    global image_names, current_image_index, patient_folder_path, coordinates_df
     folder_selected = filedialog.askdirectory()
     if folder_selected:
         patient_folder_path = folder_selected
         image_names = sorted(os.listdir(folder_selected))
         current_image_index = 0
+        coordinates_df = init_dataframe()
         load_image(patient_folder_path, image_names[current_image_index])
         slider.config(to=len(image_names) - 1)
         slider.set(current_image_index)
@@ -209,7 +215,7 @@ def load_labels_from_file():
         update_label_counts()
         
 # Function to delete all labels in the current slice
-def delete_all_labels():
+def delete_all_labels_slides():
     if tk.messagebox.askyesno("Confirm Delete", "Are you sure you want to delete all labels in the current slice?"):
         global coordinates_df, current_image_index
         # Remove the current image index from active_indices of all squares
@@ -222,7 +228,6 @@ def delete_all_labels():
         load_image(patient_folder_path, image_names[current_image_index])
         update_label_counts()
         # Function to show a confirmation dialog before deleting all labels
-
 
 # Function to load labels from the previous slice
 def load_labels_from_previous_slice():
@@ -263,21 +268,9 @@ file_menu = tk.Menu(file_menu_button, tearoff=0)
 file_menu.add_command(label="Open Images from Folder", command=select_folder)
 file_menu.add_command(label="Save Labels to File", command=save_labels_to_file)
 file_menu.add_command(label="Load Labels from File", command=load_labels_from_file)
-file_menu.add_command(label="Export images with Labels to File")
-file_menu.add_command(label="Save Report to File", command=root.quit)
+file_menu.add_command(label="Export images with Labels to File", state="disabled")
+file_menu.add_command(label="Save Report to File", command=root.quit, state="disabled")
 file_menu_button.config(menu=file_menu)
-
-# Create "File" menu button
-labels_menu_button = tk.Menubutton(menu_frame, text="Label Interaction", bg="lightgrey", relief="raised")
-labels_menu_button.pack(side="left")
-
-# Create "File" menu
-labels_menu = tk.Menu(labels_menu_button, tearoff=0)
-#labels_menu.add_command(label="Remove selected labels", command=delete_selected)
-labels_menu.add_command(label="Load Labels from previous slice", command=load_labels_from_previous_slice)
-labels_menu.add_command(label="Clear current slice", command=delete_all_labels)
-labels_menu_button.config(menu=labels_menu)
-
 
 ## -- Image frame
 # Create a Matplotlib figure and axis
@@ -322,23 +315,31 @@ slider.grid(row=0, column=1, columnspan=2, sticky='ew', padx=5, pady=5)
 next_image_button = tk.Button(button_frame, text="Next Image", command=next_image)
 next_image_button.grid(row=0, column=3, padx=5, pady=5)
 
-# Create a vertical separator
-ttk.Separator(button_frame, orient='vertical').grid(row=0, column=4, sticky='ns', padx=5, pady=5)
+# Create a vertical separator spanning multiple rows
+ttk.Separator(button_frame, orient='vertical').grid(row=0, column=4, rowspan=2, sticky='ns', padx=5, pady=5)
 
 # Add an entry for setting square size
-tk.Label(button_frame, text="Square Size:").grid(row=0, column=5, padx=5, pady=5)
+tk.Label(button_frame, text="Square Size:").grid(row=0, column=5, padx=0, pady=0)
 square_size_entry = tk.Entry(button_frame, width=5)
 square_size_entry.insert(0, str(default_square_size))  # Set default square size
-square_size_entry.grid(row=0, column=6, padx=5, pady=5)
+square_size_entry.grid(row=0, column=6, padx=0, pady=0)
+
+# Create dropdown to select the type of label
+label_type = ttk.Combobox(button_frame, values=['green', 'red', 'blue'], state='readonly', width=5)
+label_type.set('green')
+label_type.grid(row=1, column=5)
 
 # Create buttons to navigate images
 previous_image_button = tk.Button(button_frame, text="Delete selected Labels", command=delete_selected)
-previous_image_button.grid(row=0, column=7, padx=5, pady=5)
+previous_image_button.grid(row=0, column=7, padx=0, pady=0)
 
-# Create dropdown to select the type of label
-label_type = ttk.Combobox(button_frame, values=['green', 'red', 'blue'], state='readonly')
-label_type.set('green')
-label_type.grid(row=0, column=8)
+# Create buttons to navigate images
+clear_slice_button = tk.Button(button_frame, text="Clear current slice", command=delete_all_labels_slides)
+clear_slice_button.grid(row=1, column=7, padx=0, pady=0)
+
+# Create buttons to navigate images
+load_previous_slice_button = tk.Button(button_frame, text="Load Labels from previous slice", command=load_labels_from_previous_slice)
+load_previous_slice_button.grid(row=0, column=8, padx=0, pady=0)
 
 ## -- Create a horizontal separator
 ttk.Separator(root, orient='horizontal').grid(row=4, column=0, columnspan=2, sticky='ew', padx=5, pady=5)
