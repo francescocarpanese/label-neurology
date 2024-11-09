@@ -10,6 +10,7 @@ from matplotlib.backend_bases import MouseButton
 import pandas as pd
 from pydicom import dcmread
 import numpy as np
+from tkinter import ttk
 
 # Initialize the DataFrame to store the coordinates and selection status
 coordinates_df = pd.DataFrame(columns=['x', 'y', 'size', 'selected'])
@@ -93,7 +94,7 @@ def on_motion(event):
         # Update the selected square’s center coordinates
         coordinates_df.at[selected_square_index, 'x'] = x
         coordinates_df.at[selected_square_index, 'y'] = y
-        load_image(patient_folder_path, image_names[current_image_index])
+        load_image(patient_folder_path, image_names[current_image_index]) 
 
 # Function to handle mouse release and stop dragging
 def on_release(event):
@@ -131,49 +132,46 @@ def delete_selected():
     counter_label.config(text=f"Number of squares: {len(coordinates_df)}")
 
 
+# --------------------- Layout ---------------------------------
 
 # Create the main application window
 root = tk.Tk()
 root.title("Interactive Plot with Square Marker")
 
-# Create a frame for the buttons at the top
-button_frame = tk.Frame(root)
-button_frame.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
 
-# Add an entry for setting square size
-tk.Label(button_frame, text="Square Size:").grid(row=0, column=0, padx=5, pady=5)
-square_size_entry = tk.Entry(button_frame, width=5)
-square_size_entry.insert(0, str(default_square_size))  # Set default square size
-square_size_entry.grid(row=0, column=1, padx=5, pady=5)
+## ---  Menu Frame
+# Create a frame for the custom menu bar
+menu_frame = tk.Frame(root, bg="lightgrey")
+menu_frame.grid(row=0, column=0, columnspan=2, sticky='ew')
 
-# Create a button to select a folder
-select_folder_button = tk.Button(button_frame, text="Select Folder", command=select_folder)
-select_folder_button.grid(row=0, column=2, padx=5, pady=5)
+# Create "File" menu button
+file_menu_button = tk.Menubutton(menu_frame, text="File", bg="lightgrey", relief="raised")
+file_menu_button.pack(side="left")
 
-# Create buttons to navigate images
-previous_image_button = tk.Button(button_frame, text="Previous Image", command=previous_image)
-previous_image_button.grid(row=0, column=3, padx=5, pady=5)
-next_image_button = tk.Button(button_frame, text="Next Image", command=next_image)
-next_image_button.grid(row=0, column=4, padx=5, pady=5)
+# Create "File" menu
+file_menu = tk.Menu(file_menu_button, tearoff=0)
+file_menu.add_command(label="Open Images", command=select_folder)
+file_menu.add_command(label="Load Labels")
+file_menu.add_command(label="Save Labels")
+file_menu.add_command(label="Export images with Labels")
+file_menu.add_command(label="Save Report", command=root.quit)
+file_menu_button.config(menu=file_menu)
 
-# Create a button to delete selected squares
-delete_button = tk.Button(button_frame, text="Delete Selected Squares", command=delete_selected)
-delete_button.grid(row=0, column=5, padx=5, pady=5)
+# Create "File" menu button
+labels_menu_button = tk.Menubutton(menu_frame, text="Label Interaction", bg="lightgrey", relief="raised")
+labels_menu_button.pack(side="left")
 
-# Create a frame for the counter at the bottom
-counter_frame = tk.Frame(root)
-counter_frame.grid(row=4, column=0, columnspan=2, padx=5, pady=5)
-
-# Create a label to display the counter
-counter_label = tk.Label(counter_frame, text="Number of squares: 0")
-counter_label.grid(row=0, column=0, padx=5, pady=5)
-
-# Create a slider to move between images
-slider = tk.Scale(root, from_=0, to=0, orient=tk.HORIZONTAL, command=update_image)
-slider.grid(row=2, column=0, columnspan=2, sticky='ew', padx=5, pady=5)
+# Create "File" menu
+labels_menu = tk.Menu(labels_menu_button, tearoff=0)
+#labels_menu.add_command(label="Remove selected labels", command=delete_selected)
+labels_menu.add_command(label="Load Labels from previous slice")
+labels_menu.add_command(label="Save current slice")
+labels_menu.add_command(label="Clear current slice")
+labels_menu.add_command(label="Remove current slice", command=root.quit)
+labels_menu_button.config(menu=labels_menu)
 
 
-
+## -- Image frame
 # Create a Matplotlib figure and axis
 fig, ax = plt.subplots()
 ax.set_title("Click on the plot to place a square")
@@ -197,6 +195,50 @@ tk_canvas.configure(xscrollcommand=scroll_x.set, yscrollcommand=scroll_y.set)
 # Configure the scroll region of the Tkinter canvas
 tk_canvas.create_window((0, 0), window=canvas_widget, anchor="nw")
 tk_canvas.config(scrollregion=tk_canvas.bbox(tk.ALL))
+
+
+## -- Interaction frame
+
+# Create a frame for the buttons at the top
+button_frame = tk.Frame(root)
+button_frame.grid(row=3, column=0, columnspan=2, padx=5, pady=5)
+
+# Create buttons to navigate images
+previous_image_button = tk.Button(button_frame, text="Previous Image", command=previous_image)
+previous_image_button.grid(row=0, column=0, padx=5, pady=5)
+
+# Create a slider to move between images
+slider = tk.Scale(button_frame, from_=0, to=0, orient=tk.HORIZONTAL, command=update_image)
+slider.grid(row=0, column=1, columnspan=2, sticky='ew', padx=5, pady=5)
+
+next_image_button = tk.Button(button_frame, text="Next Image", command=next_image)
+next_image_button.grid(row=0, column=3, padx=5, pady=5)
+
+# Create a vertical separator
+ttk.Separator(button_frame, orient='vertical').grid(row=0, column=4, sticky='ns', padx=5, pady=5)
+
+# Add an entry for setting square size
+tk.Label(button_frame, text="Square Size:").grid(row=0, column=5, padx=5, pady=5)
+square_size_entry = tk.Entry(button_frame, width=5)
+square_size_entry.insert(0, str(default_square_size))  # Set default square size
+square_size_entry.grid(row=0, column=6, padx=5, pady=5)
+
+# Create buttons to navigate images
+previous_image_button = tk.Button(button_frame, text="Delete selected Labels", command=delete_selected)
+previous_image_button.grid(row=0, column=7, padx=5, pady=5)
+
+## Create a horizontal separator
+ttk.Separator(root, orient='horizontal').grid(row=4, column=0, columnspan=2, sticky='ew', padx=5, pady=5)
+
+## -- Bottom frame for information
+# Create a frame for the counter at the bottom
+counter_frame = tk.Frame(root)
+counter_frame.grid(row=5, column=0, columnspan=2, padx=5, pady=5)
+
+# Create a label to display the counter
+counter_label = tk.Label(counter_frame, text="Number Total Squares: 0")
+counter_label.grid(row=0, column=0, padx=5, pady=5)
+
 
 # Configure the grid to expand properly
 root.grid_rowconfigure(1, weight=1)
