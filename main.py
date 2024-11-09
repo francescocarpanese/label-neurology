@@ -1,5 +1,4 @@
 #This has put the scrollable feature together with the other feature to draw squares on the image.
-
 import os
 import tkinter as tk
 from tkinter import filedialog
@@ -13,7 +12,7 @@ import numpy as np
 from tkinter import ttk
 
 # Initialize the DataFrame to store the coordinates and selection status
-coordinates_df = pd.DataFrame(columns=['x', 'y', 'size', 'selected'])
+coordinates_df = pd.DataFrame(columns=['x', 'y', 'size', 'selected', 'type', 'active_indices', 'is_saved' ])
 
 # Initialize variables to store the image list and current image index
 image_names = []
@@ -44,21 +43,47 @@ def select_folder():
         slider.config(to=len(image_names) - 1)
         slider.set(current_image_index)
 
+# Get color depending on type
+def get_color(row):
+    if row['selected']:
+        return 'yellow'
+    else:
+        return row['type']
+        
+# Get linestyle depending is_saved
+def get_linestyle(row):
+    if row['is_saved']:
+        return '-'
+    else:
+        return '--'    
+
+# Plot all the squares on the image of a given active index
+def plot_squares():
+    global ax, canvas, coordinates_df, current_image_index
+    # Draw all squares, highlighting if selected and if the current index is part of active indices
+    for _, row in coordinates_df.iterrows():
+        if current_image_index in row['active_indices']:
+            color = get_color(row)
+            linestyle = get_linestyle(row)
+            square = Rectangle((row['x'] - row['size'] / 2, row['y'] - row['size'] / 2), row['size'], row['size'],
+                               linewidth=2, edgecolor=color, facecolor='none', linestyle=linestyle)
+            ax.add_patch(square)
+
 # Function to load and display an image
 def load_image(folder_path, image_name):
-    global ax, canvas, coordinates_df
+    global ax, canvas, coordinates_df, current_image_index
     ds = dcmread(os.path.join(folder_path, image_name))
+    
+    # Plot the image 
     image_array = ds.pixel_array
     ax.clear()
     ax.imshow(image_array, cmap='gray')
     ax.set_title(f"Image: {image_name}")
     
-    # Draw all squares, highlighting if selected
-    for _, row in coordinates_df.iterrows():
-        color = 'yellow' if row['selected'] else 'red'
-        square = Rectangle((row['x'] - row['size'] / 2, row['y'] - row['size'] / 2), row['size'], row['size'],
-                           linewidth=2, edgecolor=color, facecolor='none')
-        ax.add_patch(square)
+    # Plot all annotation    
+    plot_squares()
+    
+    # Draw the canvas
     canvas.draw()
 
 # Function to handle mouse clicks, adding or selecting squares
@@ -81,7 +106,17 @@ def on_click(event):
                 return
 
         # Add a new square if no existing square was selected
-        new_row = pd.DataFrame({'x': [x], 'y': [y], 'size': [square_size], 'selected': [False]})
+        new_row = pd.DataFrame(
+            {
+                'x': [x],
+                'y': [y],
+                'size': [square_size],
+                'selected': [False],
+                'type': [label_type.get()],
+                'active_indices': [[current_image_index]],
+                'is_saved': [False]
+                },
+            )
         coordinates_df = pd.concat([coordinates_df, new_row], ignore_index=True)
         load_image(patient_folder_path, image_names[current_image_index])
         counter_label.config(text=f"Number of squares: {len(coordinates_df)}")
@@ -226,6 +261,11 @@ square_size_entry.grid(row=0, column=6, padx=5, pady=5)
 # Create buttons to navigate images
 previous_image_button = tk.Button(button_frame, text="Delete selected Labels", command=delete_selected)
 previous_image_button.grid(row=0, column=7, padx=5, pady=5)
+
+# Create dropdown to select the type of label
+label_type = ttk.Combobox(button_frame, values=['green', 'red', 'blue'], state='readonly')
+label_type.set('green')
+label_type.grid(row=0, column=8)
 
 ## Create a horizontal separator
 ttk.Separator(root, orient='horizontal').grid(row=4, column=0, columnspan=2, sticky='ew', padx=5, pady=5)
