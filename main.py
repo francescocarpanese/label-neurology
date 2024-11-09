@@ -54,10 +54,12 @@ def get_color(row):
         
 # Get linestyle depending is_saved
 def get_linestyle(row):
-    if row['is_saved']:
-        return '-'
-    else:
-        return '--'    
+    if not row['is_saved']:
+        return '--'
+    if len(row['active_indices']) >1:
+        # In this case the corrent square is part of more than one slice
+        return ':'
+    return '-'
 
 # Plot all the squares on the image of a given active index
 def plot_squares():
