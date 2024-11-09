@@ -175,7 +175,7 @@ fig, ax = plt.subplots()
 ax.set_title("Click on the plot to place a square")
 
 # Create a Tkinter canvas to embed the Matplotlib figure
-tk_canvas = tk.Canvas(root, width=800, height=600, bg="gray")
+tk_canvas = tk.Canvas(root, width=1200, height=800, bg="gray")
 tk_canvas.grid(row=1, column=0, columnspan=2, sticky="nsew")
 
 # Embed the Matplotlib figure in the Tkinter canvas
