@@ -149,6 +149,7 @@ def previous_image():
     global current_image_index
     if current_image_index > 0:
         current_image_index -= 1
+        unselect_all()
         load_image(patient_folder_path, image_names[current_image_index])
         slider.set(current_image_index)
         update_label_counts()
@@ -158,6 +159,7 @@ def next_image():
     global current_image_index
     if current_image_index < len(image_names) - 1:
         current_image_index += 1
+        unselect_all()
         load_image(patient_folder_path, image_names[current_image_index])
         slider.set(current_image_index)
         update_label_counts()
@@ -178,12 +180,14 @@ def delete_selected():
     coordinates_df = coordinates_df[coordinates_df['active_indices'].map(len) > 0].reset_index(drop=True)
     
     # Reload the image to reflect changes
+    unselect_all()
     load_image(patient_folder_path, image_names[current_image_index])
     update_label_counts()
 
 # Save the labels of the current slice
 def save_labels():
     global coordinates_df
+    unselect_all()
     coordinates_df['is_saved'] = coordinates_df['is_saved'] | coordinates_df['active_indices'].apply(lambda x: current_image_index in x)
     load_image(patient_folder_path, image_names[current_image_index])
     
@@ -212,17 +216,20 @@ def load_labels_from_file():
         
 # Function to delete all labels in the current slice
 def delete_all_labels():
-    global coordinates_df, current_image_index
-    # Remove the current image index from active_indices of all squares
-    coordinates_df['active_indices'] = coordinates_df['active_indices'].apply(lambda x: [i for i in x if i != current_image_index])
-    
-    # Remove rows where active_indices is empty
-    coordinates_df = coordinates_df[coordinates_df['active_indices'].map(len) > 0].reset_index(drop=True)
-    
-    # Reload the image to reflect changes
-    load_image(patient_folder_path, image_names[current_image_index])
-    update_label_counts()
-    
+    if tk.messagebox.askyesno("Confirm Delete", "Are you sure you want to delete all labels in the current slice?"):
+        global coordinates_df, current_image_index
+        # Remove the current image index from active_indices of all squares
+        coordinates_df['active_indices'] = coordinates_df['active_indices'].apply(lambda x: [i for i in x if i != current_image_index])
+        
+        # Remove rows where active_indices is empty
+        coordinates_df = coordinates_df[coordinates_df['active_indices'].map(len) > 0].reset_index(drop=True)
+        
+        # Reload the image to reflect changes
+        load_image(patient_folder_path, image_names[current_image_index])
+        update_label_counts()
+        # Function to show a confirmation dialog before deleting all labels
+
+
 # Function to load labels from the previous slice
 def load_labels_from_previous_slice():
     global coordinates_df, current_image_index
@@ -234,8 +241,16 @@ def load_labels_from_previous_slice():
         previous_labels['active_indices'] = previous_labels['active_indices'].apply(lambda x: x + [current_image_index])
         # Append these labels to the coordinates DataFrame
         coordinates_df = pd.concat([coordinates_df, previous_labels], ignore_index=True)
+        unselect_all()
         load_image(patient_folder_path, image_names[current_image_index])
         update_label_counts()
+
+# Create function to unselect all squares
+def unselect_all():
+    global coordinates_df
+    coordinates_df['selected'] = False
+    load_image(patient_folder_path, image_names[current_image_index])
+
 
 # --------------------- Layout ---------------------------------
 
@@ -269,7 +284,7 @@ labels_menu_button.pack(side="left")
 # Create "File" menu
 labels_menu = tk.Menu(labels_menu_button, tearoff=0)
 #labels_menu.add_command(label="Remove selected labels", command=delete_selected)
-labels_menu.add_command(label="Load Labels from previous slice")
+labels_menu.add_command(label="Load Labels from previous slice", command=load_labels_from_previous_slice)
 labels_menu.add_command(label="Save current slice", command=save_labels)
 labels_menu.add_command(label="Clear current slice", command=delete_all_labels)
 labels_menu.add_command(label="Remove current slice", command=root.quit)
