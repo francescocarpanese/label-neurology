@@ -96,15 +96,15 @@ def on_click(event):
         square_size = get_square_size()
         
         # Check if the click is near an existing square
-        threshold_distance = square_size / 2  # Distance to consider a square selected
+        #threshold_distance = square_size / 2  # Distance to consider a square selected
         for i, row in coordinates_df.iterrows():
-            dist = np.sqrt((row['x'] - x) ** 2 + (row['y'] - y) ** 2)
-            if dist < threshold_distance:
+            if abs((row['x'] - x))< square_size/2 and abs((row['y'] - y)) <  square_size/2  and current_image_index in row['active_indices']:
                 # Toggle selection if not dragging, else start dragging
                 coordinates_df.at[i, 'selected'] = not row['selected']
                 selected_square_index = i
                 dragging = coordinates_df.at[i, 'selected']
                 load_image(patient_folder_path, image_names[current_image_index])
+                update_label_counts()
                 return
 
         # Add a new square if no existing square was selected
@@ -168,6 +168,7 @@ def next_image():
 def update_image(val):
     global current_image_index
     current_image_index = int(val)
+    unselect_all()
     load_image(patient_folder_path, image_names[current_image_index])
 
 # Function to delete selected squares
@@ -235,12 +236,8 @@ def load_labels_from_previous_slice():
     global coordinates_df, current_image_index
     if current_image_index > 0:
         previous_index = current_image_index - 1
-        # Get labels from the previous slice
-        previous_labels = coordinates_df[coordinates_df['active_indices'].apply(lambda x: previous_index in x)].copy()
-        # Add the current image index to the active indices of these labels
-        previous_labels['active_indices'] = previous_labels['active_indices'].apply(lambda x: x + [current_image_index])
-        # Append these labels to the coordinates DataFrame
-        coordinates_df = pd.concat([coordinates_df, previous_labels], ignore_index=True)
+        # Update the active indices of the existing rows that contain the previous index
+        coordinates_df.loc[coordinates_df['active_indices'].apply(lambda x: previous_index in x), 'active_indices'] = coordinates_df.loc[coordinates_df['active_indices'].apply(lambda x: previous_index in x), 'active_indices'].apply(lambda x: x + [current_image_index])
         unselect_all()
         load_image(patient_folder_path, image_names[current_image_index])
         update_label_counts()
@@ -392,13 +389,13 @@ total_blue_label_count.grid(row=0, column=3, padx=5, pady=5)
 
 # Function to update the total label counts
 def update_label_counts():
-    green_count = len(coordinates_df[coordinates_df['type'] == 'green'])
-    red_count = len(coordinates_df[coordinates_df['type'] == 'red'])
-    blue_count = len(coordinates_df[coordinates_df['type'] == 'blue'])
+    tot_green_count = len(coordinates_df[coordinates_df['type'] == 'green'])
+    tot_red_count = len(coordinates_df[coordinates_df['type'] == 'red'])
+    tot_blue_count = len(coordinates_df[coordinates_df['type'] == 'blue'])
     
-    total_green_label_count.config(text=f"Total Green Labels: {green_count}")
-    total_red_label_count.config(text=f"Total Red Labels: {red_count}")
-    total_blue_label_count.config(text=f"Total Blue Labels: {blue_count}")
+    total_green_label_count.config(text=f"Total Green Labels: {tot_green_count}")
+    total_red_label_count.config(text=f"Total Red Labels: {tot_red_count}")
+    total_blue_label_count.config(text=f"Total Blue Labels: {tot_blue_count}")
 
     green_count = len(coordinates_df[(coordinates_df['type'] == 'green') & (coordinates_df['active_indices'].apply(lambda x: current_image_index in x))])
     red_count = len(coordinates_df[(coordinates_df['type'] == 'red') & (coordinates_df['active_indices'].apply(lambda x: current_image_index in x))])
