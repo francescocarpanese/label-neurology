@@ -160,7 +160,7 @@ delete_button.grid(row=0, column=5, padx=5, pady=5)
 
 # Create a frame for the counter at the bottom
 counter_frame = tk.Frame(root)
-counter_frame.grid(row=3, column=0, columnspan=2, padx=5, pady=5)
+counter_frame.grid(row=4, column=0, columnspan=2, padx=5, pady=5)
 
 # Create a label to display the counter
 counter_label = tk.Label(counter_frame, text="Number of squares: 0")
@@ -185,7 +185,7 @@ canvas_widget.pack(fill=tk.BOTH, expand=True)
 
 # Add scrollbars to the Tkinter canvas
 scroll_x = tk.Scrollbar(root, orient="horizontal", command=tk_canvas.xview)
-scroll_x.grid(row=4, column=0, sticky="ew")
+scroll_x.grid(row=2, column=0, sticky="ew")
 scroll_y = tk.Scrollbar(root, orient="vertical", command=tk_canvas.yview)
 scroll_y.grid(row=1, column=2, sticky="ns")
 tk_canvas.configure(xscrollcommand=scroll_x.set, yscrollcommand=scroll_y.set)
