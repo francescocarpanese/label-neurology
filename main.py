@@ -80,6 +80,13 @@ def get_square_size():
 def get_instance_number(file_name):
     return state['series_type_df'][state['series_type_df']['file_name'] == file_name]['instance_number'].values[0]
 
+
+def set_state_from_series_type(series_type):
+    state['current_series_type'] = series_type
+    state['current_series_type_df'] = state['series_type_df'][state['series_type_df']['series_type'] == series_type].sort_values(by='instance_number')
+    state['current_image_name'] = state['current_series_type_df']['file_name'].iloc[0]
+    state['current_instance_index'] = 0
+
 # Function to select a folder
 def select_folder():
     folder_selected = filedialog.askdirectory()
@@ -88,10 +95,7 @@ def select_folder():
         state['patient_folder_path'] = folder_selected
         state['coordinates_df'] = init_dataframe()
         state['series_type_df'] = get_series_description(folder_selected)
-        state['current_series_type'] = state['series_type_df']['series_type'].iloc[0]
-        state['current_series_type_df'] =  state['series_type_df'][state['series_type_df']['series_type'] == state['current_series_type']].sort_values(by='instance_number')
-        state['current_image_name'] = state['current_series_type_df']['file_name'].iloc[0]
-        state['current_instance_index'] = 0
+        set_state_from_series_type(state['series_type_df']['series_type'].iloc[0])
         # Update the GUI
         load_image()
         slider.config(to=state['current_series_type_df'].shape[0] - 1)
@@ -101,16 +105,12 @@ def select_folder():
 
 # Function to handle series label_type selection
 def on_series_type_selected(event):
-    global image_names, current_instance_index, current_series_type, series_type_df, current_image_name
     selected_series_type = series_type_combo.get()
     if selected_series_type:
-        current_series_type = selected_series_type
-        image_names = series_type_df[series_type_df['series_type'] == current_series_type].sort_values('instance_number')['file_name'].tolist()
-        current_instance_index = 0
-        current_image_name = current_image_name
+        set_state_from_series_type(selected_series_type)
         load_image()
-        slider.config(to=len(image_names) - 1)
-        slider.set(current_instance_index)
+        slider.config(to=state['current_series_type_df'].shape[0] - 1)
+        slider.set(state['current_instance_index'])
 
 # Get color depending on label_type
 def get_color(row):
@@ -245,6 +245,7 @@ def next_image():
 # Function to update the image based on the slider value
 def update_image_slider(val):
     state['current_instance_index'] = int(val)
+    state['current_image_name'] = state['current_series_type_df']['file_name'].iloc[state['current_instance_index']]
     unselect_all()
     load_image()
 
