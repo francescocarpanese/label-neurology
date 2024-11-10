@@ -609,6 +609,17 @@ def check_last_save():
 save_check_thread = threading.Thread(target=check_last_save, daemon=True)
 save_check_thread.start()
 
+# Function to handle window close event
+def on_closing():
+    global last_save_time
+    time_since_last_save = (datetime.now() - last_save_time).total_seconds()
+    if time_since_last_save > 600:  # 10 minutes
+        if not tk.messagebox.askyesno("Unsaved Changes", "You have unsaved changes since last 10 min. Do you want to exit without saving?"):
+            return
+    root.destroy()
+
+# Bind the window close event to the on_closing function
+root.protocol("WM_DELETE_WINDOW", on_closing)
 
 # Start the Tkinter event loop
 root.mainloop()
