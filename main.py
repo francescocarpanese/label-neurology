@@ -34,7 +34,7 @@ state = {
 dragging = False
 selected_square_index = None
 default_square_size = 20  # Default size for the squares
-
+scale_factor = 1  # Factor to scale the image by
 
 # Function to retrieve the different series types and acquisition times of images in the dataset
 def get_series_description(folder_path):
@@ -150,12 +150,13 @@ def load_image():
     ax.clear()
     ax.imshow(image_array, cmap='gray')
     ax.set_title(f"Image: {state['current_image_name']}")
-    
+
     # Plot all annotation    
     plot_squares()
     
     # Draw the canvas
     canvas.draw()
+
 
 # Function to handle mouse clicks, adding or selecting squares
 def on_click(event):
@@ -338,6 +339,37 @@ def update_label_counts():
     blue_label_count.config(text=f"Blue Total Labels in slice: {blue_count}")
 
 
+def set_scollable_canvas():
+    global scale_factor
+    
+    # Get figure size
+    fig_size = fig.get_size_inches()
+    fig.set_size_inches(fig_size[0] * scale_factor, fig_size[1] * scale_factor)
+    # Set the new width and height of the window_id
+    new_width = int(np.ceil(window_width_original * scale_factor))
+    new_height = int(np.ceil(window_height_original * scale_factor))
+    
+    tk_canvas.itemconfig(window_id, width=new_width, height=new_height)
+    tk_canvas.config(scrollregion=tk_canvas.bbox(tk.ALL))
+
+
+
+# Function to zoom in on the image
+def zoom_in():
+    global scale_factor
+    scale_factor = scale_factor * 1.1
+
+    set_scollable_canvas()
+
+    # Redraw the canvas
+    canvas.draw()
+    
+def reset_view():
+    global scale_factor
+    scale_factor = 1
+    set_scollable_canvas()
+    load_image()
+
 # --------------------- Layout ---------------------------------
 
 # Create the main application window
@@ -366,7 +398,20 @@ file_menu_button.config(menu=file_menu)
 ## -- Image frame
 # Create a Matplotlib figure and axis
 fig, ax = plt.subplots()
-ax.set_title("Click on the plot to place a square")
+# ax.set_title("Click on the plot to place a square")
+
+# image_file_path = "/Users/nc-mbp-4564/Documents/neurology/ANTONELLI/ANTONELLI - RMN encefalo 2018/DICOM/MP000001"
+
+# # Get image
+# ds = dcmread(image_file_path)
+
+# # Plot the image 
+# image_array = ds.pixel_array
+# ax.clear()
+# ax.imshow(image_array, cmap='gray')
+# ax.set_title(f"Image: {state['current_image_name']}")
+
+
 
 # Create a Tkinter canvas to embed the Matplotlib figure
 tk_canvas = tk.Canvas(root, width=1200, height=800, bg="gray")
@@ -385,7 +430,7 @@ scroll_y.grid(row=1, column=2, sticky="ns")
 tk_canvas.configure(xscrollcommand=scroll_x.set, yscrollcommand=scroll_y.set)
 
 # Configure the scroll region of the Tkinter canvas
-tk_canvas.create_window((0, 0), window=canvas_widget, anchor="nw")
+window_id = tk_canvas.create_window((0, 0), window=canvas_widget, anchor="nw")
 tk_canvas.config(scrollregion=tk_canvas.bbox(tk.ALL))
 
 
@@ -408,7 +453,15 @@ next_image_button.grid(row=0, column=3, padx=5, pady=5)
 
 # Create dropdown to select the series label_type
 series_type_combo = ttk.Combobox(button_frame, values=[], state='readonly', width=20)
-series_type_combo.grid(row=1, column=1, columnspan=2, padx=5, pady=5)
+series_type_combo.grid(row=1, column=0, columnspan=2, padx=5, pady=5)
+
+# Create a buttom to zoom in
+zoom_in_button = tk.Button(button_frame, text="Zoom In", command=zoom_in)
+zoom_in_button.grid(row=1, column=2, padx=5, pady=5)
+
+# Create a button to reset the view
+reset_view_button = tk.Button(button_frame, text="Reset View", command=reset_view)
+reset_view_button.grid(row=1, column=3, padx=5, pady=5)
 
 # Create a vertical separator spanning multiple rows
 ttk.Separator(button_frame, orient='vertical').grid(row=0, column=4, rowspan=2, sticky='ns', padx=5, pady=5)
@@ -474,6 +527,9 @@ total_red_label_count.grid(row=0, column=2, padx=5, pady=5)
 total_blue_label_count = tk.Label(total_counter_frame, text="Total Blue Labels: 0")
 total_blue_label_count.grid(row=0, column=3, padx=5, pady=5)
 
+# Get initial state for later zoom
+window_width_original = tk_canvas.bbox(window_id)[2] - tk_canvas.bbox(window_id)[0]
+window_height_original = tk_canvas.bbox(window_id)[3] - tk_canvas.bbox(window_id)[1]
 
 # Configure the grid to expand properly
 root.grid_rowconfigure(1, weight=1)
