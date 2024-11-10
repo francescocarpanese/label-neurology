@@ -10,13 +10,14 @@ from pydicom import dcmread
 import numpy as np
 from tkinter import ttk
 from datetime import datetime
+from tkinter import simpledialog
 
 CODE_VERSION = "0.0.1"
 
 def init_dataframe():
     coordinates_df = pd.DataFrame(columns=['x', 'y', 'size', 'selected', 'label_type', 'active_instance_numbers',
                                            'patient_folder', 'creation_timestamp', 'code_version', 'series_type',
-                                           ])
+                                           'user_name'])
     return coordinates_df
 
 state = {
@@ -35,6 +36,7 @@ dragging = False
 selected_square_index = None
 default_square_size = 20  # Default size for the squares
 scale_factor = 1  # Factor to scale the image by
+user_name = ""
 
 # Function to retrieve the different series types and acquisition times of images in the dataset
 def get_series_description(folder_path):
@@ -51,7 +53,7 @@ def get_series_description(folder_path):
                     continue
                 # Retrieve SeriesDescription and AcquisitionTime
                 series_description = ds.SeriesDescription if 'SeriesDescription' in ds else 'Unknown'
-                instance_number = ds.InstanceNumber if 'InstanceNumber' in ds else 'Unknown'
+                instance_number = int(ds.InstanceNumber) if 'InstanceNumber' in ds else 'Unknown'
                 
                 # Append information to lists
                 file_list.append(file_name)
@@ -191,7 +193,8 @@ def on_click(event):
                 'patient_folder': [state['patient_folder_path']],
                 'creation_timestamp': [pd.Timestamp.now()],
                 'code_version': [CODE_VERSION],
-                'series_type': [state['current_series_type']]
+                'series_type': [state['current_series_type']],
+                'user_name': [user_name],
                 },
             )
         state['coordinates_df'] = pd.concat([state['coordinates_df'], new_row], ignore_index=True)
@@ -259,11 +262,13 @@ def delete_selected():
     load_image()
     update_label_counts()
 
-
 # Function to save labels to a CSV file
 def save_labels_to_file():
     file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
     if file_path:
+        # Convert 'active_instance_numbers' into list of integers
+        state['coordinates_df']['active_instance_numbers'] = state['coordinates_df']['active_instance_numbers'].apply(lambda x: [int(i) for i in x])
+        
         # Save the DataFrame to the specified CSV file
         state['coordinates_df'].to_csv(file_path, index=False)
         tk.messagebox.showinfo("Save Labels", f"Labels saved to {file_path}")
@@ -399,13 +404,12 @@ file_menu_button.config(menu=file_menu)
 ## -- Image frame
 # Create a Matplotlib figure and axis
 fig, ax = plt.subplots()
+
+# For debug convenience
 # ax.set_title("Click on the plot to place a square")
-
 # image_file_path = "/Users/nc-mbp-4564/Documents/neurology/ANTONELLI/ANTONELLI - RMN encefalo 2018/DICOM/MP000001"
-
 # # Get image
 # ds = dcmread(image_file_path)
-
 # # Plot the image 
 # image_array = ds.pixel_array
 # ax.clear()
@@ -543,6 +547,18 @@ canvas.mpl_connect('motion_notify_event', on_motion)
 canvas.mpl_connect('button_release_event', on_release)
 # Bind the series label_type combo box to the selection function
 series_type_combo.bind("<<ComboboxSelected>>", on_series_type_selected)
+
+
+# Ask user name before starting
+def ask_user_name():
+    user_name = simpledialog.askstring("Input", "Surname")
+    if user_name is None:
+        user_name = 'unknown'
+    else:
+        user_name = ''.join(e for e in user_name if e.isalnum())
+    return user_name
+user_name = ask_user_name()
+
 
 # Start the Tkinter event loop
 root.mainloop()
