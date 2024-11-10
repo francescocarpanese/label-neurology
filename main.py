@@ -37,6 +37,7 @@ selected_square_index = None
 default_square_size = 20  # Default size for the squares
 scale_factor = 1  # Factor to scale the image by
 user_name = ""
+output_file = ""
 
 # Function to retrieve the different series types and acquisition times of images in the dataset
 def get_series_description(folder_path):
@@ -265,8 +266,6 @@ def delete_selected():
 # Function to save labels to a CSV file
 def save_labels_to_file():
     file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-    file_path = file_path.replace(".csv", f"_{timestamp}.csv")
     if file_path:
         # Convert 'active_instance_numbers' into list of integers
         state['coordinates_df']['active_instance_numbers'] = state['coordinates_df']['active_instance_numbers'].apply(lambda x: [int(i) for i in x])
