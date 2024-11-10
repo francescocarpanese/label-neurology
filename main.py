@@ -11,6 +11,8 @@ import numpy as np
 from tkinter import ttk
 from datetime import datetime
 from tkinter import simpledialog
+import threading
+
 
 CODE_VERSION = "0.0.1"
 
@@ -37,7 +39,7 @@ selected_square_index = None
 default_square_size = 20  # Default size for the squares
 scale_factor = 1  # Factor to scale the image by
 user_name = ""
-output_file = ""
+last_save_time = datetime.now()
 
 # Function to retrieve the different series types and acquisition times of images in the dataset
 def get_series_description(folder_path):
@@ -262,6 +264,33 @@ def delete_selected():
     unselect_all()
     load_image()
     update_label_counts()
+    
+# # Backup function
+# def save_backup():
+#     # Create a folder to store the backup
+#     backup_folder = os.path.join(os.path.dirname(__file__), 'backup')
+#     if not os.path.exists(backup_folder):
+#         os.makedirs(backup_folder)
+
+#     # Save the coordinates DataFrame to a CSV file
+#     backup_file_path = os.path.join(backup_folder, f"coordinates_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+#     state['coordinates_df']['active_instance_numbers'] = state['coordinates_df']['active_instance_numbers'].apply(lambda x: [int(i) for i in x])
+#     state['coordinates_df'].to_csv(backup_file_path, index=False)
+
+
+# # Function to periodically save backup
+# def periodic_backup():
+#     delta_last_save = datetime.now() - last_save_time
+#     threshold = 5  # Save every 60 seconds
+#     while delta_last_save.total_seconds() > threshold:
+#         save_backup()
+#         print(f"Backup saved at {datetime.now()}")
+
+# # Start the periodic backup in a separate thread
+# backup_thread = threading.Thread(target=periodic_backup, daemon=True)
+# backup_thread.start()
+
+
 
 # Function to save labels to a CSV file
 def save_labels_to_file():
@@ -273,6 +302,7 @@ def save_labels_to_file():
         # Save the DataFrame to the specified CSV file
         state['coordinates_df'].to_csv(file_path, index=False)
         tk.messagebox.showinfo("Save Labels", f"Labels saved to {file_path}")
+        last_save_time = datetime.now()
         
 # Function to load labels from a CSV file
 def load_labels_from_file():
@@ -559,6 +589,7 @@ def ask_user_name():
         user_name = ''.join(e for e in user_name if e.isalnum())
     return user_name
 user_name = ask_user_name()
+
 
 
 # Start the Tkinter event loop
