@@ -365,7 +365,23 @@ def set_scollable_canvas():
     tk_canvas.itemconfig(window_id, width=new_width, height=new_height)
     tk_canvas.config(scrollregion=tk_canvas.bbox(tk.ALL))
 
-
+# Function to write a report to a file
+def write_report_to_file():
+    report_file_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt")])
+    if report_file_path:
+        with open(report_file_path, 'w') as report_file:
+            series_types = state['coordinates_df']['series_type'].unique()
+            for series_type in series_types:
+                report_file.write(f"Series Type: {series_type}\n")
+                series_df = state['coordinates_df'][state['coordinates_df']['series_type'] == series_type]
+                green_count = len(series_df[series_df['label_type'] == 'green'])
+                red_count = len(series_df[series_df['label_type'] == 'red'])
+                blue_count = len(series_df[series_df['label_type'] == 'blue'])
+                report_file.write(f"  Green Labels: {green_count}\n")
+                report_file.write(f"  Red Labels: {red_count}\n")
+                report_file.write(f"  Blue Labels: {blue_count}\n")
+                report_file.write("\n")
+        tk.messagebox.showinfo("Report Saved", f"Report saved to {report_file_path}")
 
 # Function to zoom in on the image
 def zoom_in():
@@ -404,8 +420,9 @@ file_menu = tk.Menu(file_menu_button, tearoff=0)
 file_menu.add_command(label="Open Images from Folder", command=select_folder)
 file_menu.add_command(label="Save Labels to File", command=save_labels_to_file)
 file_menu.add_command(label="Load Labels from File", command=load_labels_from_file)
+file_menu.add_command(label="Save Report to File", command=write_report_to_file)
 file_menu.add_command(label="Export images with Labels to File", state="disabled")
-file_menu.add_command(label="Save Report to File", command=root.quit, state="disabled")
+
 file_menu_button.config(menu=file_menu)
 
 ## -- Image frame
