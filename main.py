@@ -245,6 +245,7 @@ def update_image_slider(val):
     state['current_image_name'] = state['current_series_type_df']['file_name'].iloc[state['current_image_idx']]
     unselect_all()
     load_image()
+    update_label_counts()
 
 # Function to delete selected squares
 def delete_selected():
