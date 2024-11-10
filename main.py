@@ -159,7 +159,8 @@ def load_image():
 
     # Plot all annotation    
     plot_squares()
-    
+    update_label_counts()
+
     # Draw the canvas
     canvas.draw()
 
@@ -321,8 +322,6 @@ def load_labels_from_previous_slice():
         for i, row in state['coordinates_df'].iterrows():
             if previous_instance_number in row['active_instance_numbers']:
                 state['coordinates_df'].at[i, 'active_instance_numbers'].append(current_instance_number)
-
-            
         unselect_all()
         load_image()
         update_label_counts()
@@ -336,17 +335,17 @@ def update_label_counts():
     coordinates_df = state['coordinates_df']
     current_instance_number = get_instance_number(state['current_image_name'])
     
-    tot_green_count = len(state['coordinates_df'][state['coordinates_df']['label_type'] == 'green'])
-    tot_red_count = len(state['coordinates_df'][state['coordinates_df']['label_type'] == 'red'])
-    tot_blue_count = len(state['coordinates_df'][state['coordinates_df']['label_type'] == 'blue'])
+    tot_green_count = len(coordinates_df[(coordinates_df['label_type'] == 'green') & (coordinates_df['series_type'] == state['current_series_type'])])
+    tot_red_count = len(coordinates_df[(coordinates_df['label_type'] == 'red') & (coordinates_df['series_type'] == state['current_series_type'])])
+    tot_blue_count = len(coordinates_df[(coordinates_df['label_type'] == 'blue') & (coordinates_df['series_type'] == state['current_series_type'])])
     
     total_green_label_count.config(text=f"Total Green Labels: {tot_green_count}")
     total_red_label_count.config(text=f"Total Red Labels: {tot_red_count}")
     total_blue_label_count.config(text=f"Total Blue Labels: {tot_blue_count}")
 
-    green_count = len(state['coordinates_df'][(state['coordinates_df']['label_type'] == 'green') & (state['coordinates_df']['active_instance_numbers'].apply(lambda x: current_instance_number in x))])
-    red_count = len(state['coordinates_df'][(state['coordinates_df']['label_type'] == 'red') & (state['coordinates_df']['active_instance_numbers'].apply(lambda x: current_instance_number in x))])
-    blue_count = len(state['coordinates_df'][(state['coordinates_df']['label_type'] == 'blue') & (state['coordinates_df']['active_instance_numbers'].apply(lambda x: current_instance_number in x))])
+    green_count = len(coordinates_df[(coordinates_df['label_type'] == 'green') & (coordinates_df['active_instance_numbers'].apply(lambda x: current_instance_number in x)) & (coordinates_df['series_type'] == state['current_series_type'])])
+    red_count = len(coordinates_df[(coordinates_df['label_type'] == 'red') & (coordinates_df['active_instance_numbers'].apply(lambda x: current_instance_number in x)) & (coordinates_df['series_type'] == state['current_series_type'])])
+    blue_count = len(coordinates_df[(coordinates_df['label_type'] == 'blue') & (coordinates_df['active_instance_numbers'].apply(lambda x: current_instance_number in x)) & (coordinates_df['series_type'] == state['current_series_type'])])
     
     green_label_count.config(text=f"Green Labels in slice: {green_count}")
     red_label_count.config(text=f"Red Total Labels in slice: {red_count}")
