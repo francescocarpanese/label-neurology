@@ -12,6 +12,7 @@ from tkinter import ttk
 from datetime import datetime
 from tkinter import simpledialog
 import threading
+import time
 
 
 CODE_VERSION = "0.0.1"
@@ -265,30 +266,6 @@ def delete_selected():
     load_image()
     update_label_counts()
     
-# # Backup function
-# def save_backup():
-#     # Create a folder to store the backup
-#     backup_folder = os.path.join(os.path.dirname(__file__), 'backup')
-#     if not os.path.exists(backup_folder):
-#         os.makedirs(backup_folder)
-
-#     # Save the coordinates DataFrame to a CSV file
-#     backup_file_path = os.path.join(backup_folder, f"coordinates_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
-#     state['coordinates_df']['active_instance_numbers'] = state['coordinates_df']['active_instance_numbers'].apply(lambda x: [int(i) for i in x])
-#     state['coordinates_df'].to_csv(backup_file_path, index=False)
-
-
-# # Function to periodically save backup
-# def periodic_backup():
-#     delta_last_save = datetime.now() - last_save_time
-#     threshold = 5  # Save every 60 seconds
-#     while delta_last_save.total_seconds() > threshold:
-#         save_backup()
-#         print(f"Backup saved at {datetime.now()}")
-
-# # Start the periodic backup in a separate thread
-# backup_thread = threading.Thread(target=periodic_backup, daemon=True)
-# backup_thread.start()
 
 
 
@@ -579,7 +556,7 @@ canvas.mpl_connect('button_release_event', on_release)
 # Bind the series label_type combo box to the selection function
 series_type_combo.bind("<<ComboboxSelected>>", on_series_type_selected)
 
-
+## ---- Init code sequence ---- 
 # Ask user name before starting
 def ask_user_name():
     user_name = simpledialog.askstring("Input", "Surname")
@@ -590,6 +567,47 @@ def ask_user_name():
     return user_name
 user_name = ask_user_name()
 
+
+# Backup function
+def save_backup():
+    # Create a folder to store the backup
+    backup_folder = os.path.join(os.path.dirname(__file__), 'backup')
+    if not os.path.exists(backup_folder):
+        os.makedirs(backup_folder)
+
+    # Save the coordinates DataFrame to a CSV file
+    backup_file_path = os.path.join(backup_folder, f"coordinates_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+    state['coordinates_df']['active_instance_numbers'] = state['coordinates_df']['active_instance_numbers'].apply(lambda x: [int(i) for i in x])
+    state['coordinates_df'].to_csv(backup_file_path, index=False)
+
+
+# Function to periodically save backup
+def periodic_backup():
+    global state
+    threshold = 60*10  # Save every 60 seconds
+    while True:
+        time.sleep(threshold)
+        save_backup()
+        print(f"Backup saved at {datetime.now()}")
+
+
+# Start the periodic backup in a separate thread
+backup_thread = threading.Thread(target=periodic_backup, daemon=True)
+backup_thread.start()
+
+# Function to periodically check the last save time and show a popup if needed
+def check_last_save():
+    trheshold = 60*10  # 10 minutes
+    global last_save_time
+    while True:
+        time.sleep(trheshold)
+        tk.messagebox.showwarning("Save Reminder", "It's been more than 10 minutes since the last save.")
+        last_save_time = datetime.now()
+
+
+# Start the periodic check in a separate thread
+save_check_thread = threading.Thread(target=check_last_save, daemon=True)
+save_check_thread.start()
 
 
 # Start the Tkinter event loop
