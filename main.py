@@ -629,7 +629,7 @@ save_check_thread.start()
 def on_closing():
     global last_save_time
     time_since_last_save = (datetime.now() - last_save_time).total_seconds()
-    if time_since_last_save > 5:  # 10 minutes
+    if time_since_last_save > 60:  # 10 minutes
         if not tk.messagebox.askyesno("Unsaved Changes", "You have unsaved changes since last 10 min. Do you want to exit without saving?"):
             return
     root.destroy()
