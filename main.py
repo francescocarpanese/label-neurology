@@ -265,9 +265,8 @@ def delete_selected():
 # Function to save labels to a CSV file
 def save_labels_to_file():
     file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
-
-
-
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+    file_path = file_path.replace(".csv", f"_{timestamp}.csv")
     if file_path:
         # Convert 'active_instance_numbers' into list of integers
         state['coordinates_df']['active_instance_numbers'] = state['coordinates_df']['active_instance_numbers'].apply(lambda x: [int(i) for i in x])
