@@ -1,4 +1,6 @@
-A tool to simplyfy the process of counting cerebral microbleeds in MRI scans, reading DICOM files.
+A tool to simplify the process of counting cerebral microbleeds in MRI scans, reading DICOM files.
+
+![example](output_neurology.gif)
 
 The main challenge for the neurologist when counting microbleeds is keeping track of previous slices to avoid double-counting the same microbleed across multiple slices.
 
@@ -8,18 +10,39 @@ Additionally, when an inherited microbleed disappears from view after a few slic
 
 This way the user can keep track of the microbleeds across slices and avoid double-counting them, wihout the burden of manually keeping track of them.
 
-See the .gif for an example.
-![example](output_neurology.gif)
-
 # Installation
 
-# Features
+## Windows
+- Download the latest version of the program [here](https://github.com/francescocarpanese/label-neurology/releases/download/v.1.0.2/label-neurology.zip)
+- Unzip the folder.
+- Copy the file `main.exe` in the location of your preference. 
+- Double click on `main.exe` to run the program.
+
+The location of the `main.exe` will contain the backup files for the annotation.
+
+## Linux/MacOs
+- Clone the repository `git clone https://github.com/francescocarpanese/label-neurology.git`
+- Open a terminal.
+- Navigate the folder `cd label-neurology`
+- It is recommended to use a conda environment.
+- Run `pip install -r requirements.txt` to install the dependencies.
+- Run the program with `python main.py`
 
 # Features
+- Import annotations from previous slices.
+- Count only 1 time linked microbleeds across slices.
+- Delete annotations from the current slice.
+- Save the annotations in a csv file.
+- Load the annotations from a csv file.
+- Different color to distinguish between type of microbleeds.
+- Zoom in/out.
+- Save report file with the count of microbleeds per patient.
+- Automatic backup of the annotations every 10 minutes.
 
-# Developing
+# Contributing
+Open a branch and create a pull request.
 
-
-# 
+# Contact
+If you have any question/request reach out at francescocarpanese [at] hotmail [dot] it.
 
 
