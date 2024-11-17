@@ -21,7 +21,7 @@ jobs:
           python-version: 3.13
           
       - name: Set up Miniconda
-        uses: conda-incubator/setup-miniconda@v4
+        uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
           python-version: 3.13
