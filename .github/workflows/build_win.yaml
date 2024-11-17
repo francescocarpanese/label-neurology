@@ -1,0 +1,46 @@
+name: Build EXE WinOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Release version'
+        required: true
+  release:
+    types:
+      - created
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.13
+          
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          python-version: 3.13
+
+      - name: Compile code
+        run: ./build_exe.ps1
+        shell: pwsh
+
+      - name: List directory contents
+        run: ls -R
+
+      - name: Archive EXE
+        run: Compress-Archive -Path $PWD\dist -DestinationPath label-neurology.zip
+
+      - name: Create artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: label-neurology-latest
+          path: label-neurology.zip
